@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: sticky recommendation rail on the left, full player board on the right; stacks on phones */
+/* Layout: sticky rail (paste box + recommendations) on the left, full player board on the right; stacks on phones */
 :root {
   --bg: #eef1f4;
   --surface: #ffffff;
@@ -12,8 +12,7 @@
   --muted: #5d6b78;
   --accent: #d9581c;      /* ball orange */
   --accent-soft: #fbe6da;
-  --mine: #1b64a8;
-  --mine-soft: #dceaf7;
+  --ok: #2f7d4f;
   --warn: #a8700a;
   --bad: #b8322a;
   --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -22,19 +21,17 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0e151c; --surface: #16212b; --line: #26333f; --fg: #e4eaf0; --muted: #8e9cab;
-  --accent: #f07a3e; --accent-soft: #3a2418; --mine: #5ea3e6; --mine-soft: #172d42;
-  --warn: #e0a83a; --bad: #ef6b60; color-scheme: dark } }
+  --accent: #f07a3e; --accent-soft: #3a2418; --ok: #5cc28a; --warn: #e0a83a; --bad: #ef6b60; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #0e151c; --surface: #16212b; --line: #26333f; --fg: #e4eaf0; --muted: #8e9cab;
-  --accent: #f07a3e; --accent-soft: #3a2418; --mine: #5ea3e6; --mine-soft: #172d42;
-  --warn: #e0a83a; --bad: #ef6b60; color-scheme: dark }
+  --accent: #f07a3e; --accent-soft: #3a2418; --ok: #5cc28a; --warn: #e0a83a; --bad: #ef6b60; color-scheme: dark }
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
 .wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 button { font: inherit; color: inherit; cursor: pointer; }
-button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 
 header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
@@ -45,46 +42,40 @@ h1 span { color: var(--accent); }
 .stat b { font-family: var(--f-display); font-size: 1.6rem; font-weight: 600; line-height: 1.05; }
 .stat small { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .stat.hot b { color: var(--accent); }
-.tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 7px 12px; font-size: .85rem; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 12px; font-size: .85rem; }
 .btn:hover { border-color: var(--muted); }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn.danger { color: var(--bad); }
 
-.grid { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 18px; align-items: start; }
+.grid { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 .rail { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; padding-right: 2px; }
 @media (max-width: 900px) { .rail { position: static; max-height: none; overflow: visible; } }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
-.panel h2 { font-family: var(--f-display); font-size: 1.15rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.panel h2 { font-family: var(--f-display); font-size: 1.15rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel h2 small { font-family: var(--f-body); font-size: .72rem; font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
 .best { border-color: var(--accent); }
 .best h2 { color: var(--accent); }
 
-.rec { display: grid; grid-template-columns: 22px minmax(0,1fr) auto auto; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.paste textarea { width: 100%; min-height: 110px; resize: vertical; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--fg); font-family: var(--f-mono); font-size: .78rem; line-height: 1.4; }
+.paste .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.paste .status { font-size: .8rem; color: var(--muted); }
+.paste .status b { color: var(--ok); font-weight: 600; }
+.warnbox { margin-top: 8px; font-size: .78rem; color: var(--warn); }
+.warnbox ul { margin: 4px 0 0; padding-left: 18px; }
+
+.rec { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
 .rec:first-of-type { border-top: 0; }
 .rec .rk { font-family: var(--f-display); font-size: 1.1rem; font-weight: 600; color: var(--muted); text-align: right; }
 .rec .nm { min-width: 0; }
 .rec .nm b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec .nm span { font-size: .75rem; color: var(--muted); }
 .rec .val { font-size: .85rem; }
-.acts { display: flex; gap: 4px; }
-.mini { border: 1px solid var(--line); background: transparent; border-radius: 5px; padding: 3px 7px; font-size: .75rem; white-space: nowrap; }
-.mini.m { color: var(--mine); border-color: var(--mine); }
-.mini.m:hover { background: var(--mine-soft); }
-.mini.t:hover { background: var(--accent-soft); border-color: var(--accent); }
 
 .posgrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; }
 .posblock h3 { margin: 0 0 2px; font-family: var(--f-display); font-size: 1rem; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
 .posblock h3 em { font-style: normal; font-family: var(--f-body); font-size: .72rem; color: var(--muted); font-weight: 400; }
 .empty { color: var(--muted); font-size: .8rem; padding: 4px 0; }
-
-.team .row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); font-size: .85rem; }
-.team .row:first-of-type { border-top: 0; }
-.team .row span { color: var(--muted); font-size: .75rem; }
-.counts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.chip { font-family: var(--f-mono); font-size: .72rem; padding: 2px 7px; border-radius: 999px; background: var(--mine-soft); color: var(--mine); }
 
 .inj { display: inline-block; font-family: var(--f-mono); font-size: .66rem; font-weight: 500; padding: 0 4px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }
 .inj.Q { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
@@ -101,23 +92,14 @@ label.tog { display: flex; gap: 6px; align-items: center; font-size: .85rem; col
 
 .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 table { width: 100%; border-collapse: collapse; }
-th { position: sticky; top: 0; background: var(--surface); text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { background: var(--surface); text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 td { padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 td.r, th.r { text-align: right; }
 tr.taken td { color: var(--muted); }
 tr.taken td.pl b { text-decoration: line-through; font-weight: 400; }
-tr.mine td { background: var(--mine-soft); }
-tr.mine td.pl b { color: var(--mine); text-decoration: none; font-weight: 600; }
 .tag { font-size: .7rem; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
-.tag.mine { color: var(--mine); border-color: var(--mine); }
 .foot { color: var(--muted); font-size: .78rem; }
-
-.dialog { position: fixed; inset: 0; background: color-mix(in srgb, var(--fg) 40%, transparent); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
-.dialog .box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
-.dialog .box p { margin: 0; }
-.dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
-@media (prefers-reduced-motion: no-preference) { tr, .rec { transition: background-color .15s; } }
 </style>
 
 <div class="wrap">
@@ -126,17 +108,22 @@ tr.mine td.pl b { color: var(--mine); text-decoration: none; font-weight: 600; }
     <div class="clock">
       <div class="stat hot"><b class="num" id="pick">1</b><small>Pikas</small></div>
       <div class="stat"><b class="num" id="round">1</b><small>Ratas</small></div>
-      <div class="stat"><b class="num" id="mineCount">0</b><small>Mano</small></div>
+      <div class="stat"><b class="num" id="takenCount">0</b><small>Paimta</small></div>
       <div class="stat"><b class="num" id="left">300</b><small>Liko</small></div>
-    </div>
-    <div class="tools">
-      <button class="btn" id="undo" type="button">Atšaukti paskutinį</button>
-      <button class="btn danger" id="reset" type="button">Pradėti iš naujo</button>
     </div>
   </header>
 
   <div class="grid">
     <aside class="rail">
+      <section class="panel paste">
+        <h2>Paimti žaidėjai <small>įklijuokite iš draft puslapio</small></h2>
+        <textarea id="pasted" spellcheck="false" placeholder="Nukopijuokite draft rezultatus ar pikų sąrašą ir įklijuokite čia. Vardai atpažįstami automatiškai, kitas tekstas ignoruojamas."></textarea>
+        <div class="bar">
+          <span class="status" id="status">Dar nieko neįklijuota.</span>
+          <button class="btn" id="clear" type="button">Išvalyti</button>
+        </div>
+        <div class="warnbox" id="warn" hidden></div>
+      </section>
       <section class="panel best">
         <h2>Geriausi 5 <small>pagal MAX reitingą</small></h2>
         <div id="top5"></div>
@@ -144,11 +131,6 @@ tr.mine td.pl b { color: var(--mine); text-decoration: none; font-weight: 600; }
       <section class="panel">
         <h2>Pagal pozicijas <small>po 3 laisvus</small></h2>
         <div class="posgrid" id="bypos"></div>
-      </section>
-      <section class="panel team">
-        <h2>Mano komanda <small id="teamZ"></small></h2>
-        <div class="counts" id="posCounts"></div>
-        <div id="myTeam"></div>
       </section>
     </aside>
 
@@ -174,18 +156,8 @@ tr.mine td.pl b { color: var(--mine); text-decoration: none; font-weight: 600; }
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <p class="foot">„Mano“ pažymi žaidėją jūsų komandoje, „Paimtas“ – kitų paimtą. Žymėjimai išsaugomi šiame naršyklės lange. 16 komandų lyga.</p>
+      <p class="foot">Atpažįstami pilni vardai („Nikola Jokić“, „Nikola Jokic“) ir trumpiniai („N. Jokic“). Įklijuotas tekstas išsaugomas šioje naršyklėje. 16 komandų lyga.</p>
     </main>
-  </div>
-</div>
-
-<div class="dialog" id="confirm" hidden>
-  <div class="box" role="dialog" aria-modal="true" aria-labelledby="cfText">
-    <p id="cfText">Išvalyti visus pažymėjimus ir pradėti draftą iš naujo?</p>
-    <div class="row">
-      <button class="btn" type="button" id="cfNo">Ne</button>
-      <button class="btn danger" type="button" id="cfYes">Taip, išvalyti</button>
-    </div>
   </div>
 </div>
 
@@ -193,95 +165,119 @@ tr.mine td.pl b { color: var(--mine); text-decoration: none; font-weight: 600; }
 const PLAYERS = [{"id":1,"rank":1,"name":"Nikola Jokić","team":"DEN","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":24.26,"zp":12.67,"zl":11.59,"gp":71},{"id":2,"rank":2,"name":"Shai Gilgeous-Alexander","team":"OKC","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":22.39,"zp":11.69,"zl":10.7,"gp":73},{"id":3,"rank":3,"name":"Victor Wembanyama","team":"SAS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":20.64,"zp":10.29,"zl":10.35,"gp":68},{"id":4,"rank":4,"name":"Tyrese Maxey","team":"PHI","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":15.6,"zp":6.4,"zl":9.2,"gp":69},{"id":5,"rank":5,"name":"Luka Dončić","team":"LAL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":12.24,"zp":5.83,"zl":6.41,"gp":66},{"id":6,"rank":6,"name":"Kawhi Leonard","team":"TOR","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":12.24,"zp":3.84,"zl":8.16,"gp":59},{"id":7,"rank":7,"name":"Scottie Barnes","team":"TOR","pos":"SF,PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":11.83,"zp":3.72,"zl":7.89,"gp":72},{"id":8,"rank":8,"name":"Jamal Murray","team":"DEN","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":11.68,"zp":4.37,"zl":7.31,"gp":68},{"id":9,"rank":9,"name":"Kevin Durant","team":"HOU","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"Q","max":11.07,"zp":3.51,"zl":7.38,"gp":70},{"id":10,"rank":10,"name":"Donovan Mitchell","team":"CLE","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":11.0,"zp":4.59,"zl":6.41,"gp":68},{"id":11,"rank":11,"name":"Karl-Anthony Towns","team":"NYK","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":10.12,"zp":4.49,"zl":5.63,"gp":73},{"id":12,"rank":12,"name":"Amen Thompson","team":"HOU","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":9.69,"zp":4.42,"zl":5.27,"gp":73},{"id":13,"rank":13,"name":"Jalen Johnson","team":"ATL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":9.06,"zp":3.82,"zl":5.24,"gp":65},{"id":14,"rank":14,"name":"Chet Holmgren","team":"OKC","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":8.96,"zp":3.99,"zl":4.97,"gp":69},{"id":15,"rank":15,"name":"N. Alexander-Walker","team":"ATL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":8.96,"zp":3.43,"zl":5.53,"gp":80},{"id":16,"rank":16,"name":"Anthony Edwards","team":"MIN","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":8.52,"zp":5.17,"zl":3.35,"gp":76},{"id":17,"rank":17,"name":"Cooper Flagg","team":"DAL","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":8.36,"zp":5.29,"zl":3.07,"gp":75},{"id":18,"rank":18,"name":"Derrick White","team":"BOS","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":8.2,"zp":3.43,"zl":4.77,"gp":73},{"id":19,"rank":19,"name":"Desmond Bane","team":"ORL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":8.19,"zp":2.32,"zl":5.46,"gp":70},{"id":20,"rank":20,"name":"Trey Murphy III","team":"NOP","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":8.1,"zp":3.3,"zl":4.8,"gp":66},{"id":21,"rank":21,"name":"Donovan Clingan","team":"POR","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":7.77,"zp":3.23,"zl":4.54,"gp":73},{"id":22,"rank":22,"name":"Mikal Bridges","team":"NYK","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":7.5,"zp":2.25,"zl":5.0,"gp":82},{"id":23,"rank":23,"name":"Cade Cunningham","team":"DET","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":7.24,"zp":3.5,"zl":3.74,"gp":69},{"id":24,"rank":24,"name":"James Harden","team":"CLE","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":6.99,"zp":2.24,"zl":4.66,"gp":71},{"id":25,"rank":25,"name":"Jalen Duren","team":"DET","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":6.9,"zp":3.18,"zl":3.72,"gp":72},{"id":26,"rank":26,"name":"Stephen Curry","team":"GSW","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":6.46,"zp":4.31,"zl":0.01,"gp":67},{"id":27,"rank":27,"name":"Tyrese Haliburton","team":"IND","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":6.35,"zp":4.23,"zl":null,"gp":68},{"id":28,"rank":28,"name":"Bam Adebayo","team":"MIA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":6.31,"zp":2.76,"zl":3.55,"gp":74},{"id":29,"rank":29,"name":"Onyeka Okongwu","team":"ATL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":6.3,"zp":2.64,"zl":3.66,"gp":70},{"id":30,"rank":30,"name":"Matas Buzelis","team":"CHI","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":6.27,"zp":3.73,"zl":2.54,"gp":76},{"id":31,"rank":31,"name":"Jayson Tatum","team":"BOS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":6.11,"zp":4.07,"zl":-6.72,"gp":68},{"id":32,"rank":32,"name":"Austin Reaves","team":"LAL","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"","max":6.03,"zp":4.02,"zl":0.45,"gp":70},{"id":33,"rank":33,"name":"Dyson Daniels","team":"ATL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":5.94,"zp":2.43,"zl":3.51,"gp":72},{"id":34,"rank":34,"name":"Kel'el Ware","team":"MIL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":5.71,"zp":2.51,"zl":3.2,"gp":72},{"id":35,"rank":35,"name":"Lauri Markkanen","team":"UTA","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":5.59,"zp":3.73,"zl":-0.07,"gp":68},{"id":36,"rank":36,"name":"Jalen Brunson","team":"NYK","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":5.43,"zp":2.3,"zl":3.13,"gp":72},{"id":37,"rank":37,"name":"Kon Knueppel","team":"CHA","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":5.27,"zp":1.76,"zl":3.51,"gp":70},{"id":38,"rank":38,"name":"Payton Pritchard","team":"BOS","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":5.04,"zp":2.39,"zl":2.65,"gp":75},{"id":39,"rank":39,"name":"Reed Sheppard","team":"HOU","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":4.72,"zp":-0.03,"zl":3.15,"gp":72},{"id":40,"rank":40,"name":"Jaden McDaniels","team":"MIN","pos":"SF","p":{"C":0,"PG":0,"PF":0,"SG":0,"SF":1},"inj":"","max":4.68,"zp":2.36,"zl":2.32,"gp":75},{"id":41,"rank":41,"name":"Neemias Queta","team":"BOS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":4.43,"zp":-0.83,"zl":2.95,"gp":65},{"id":42,"rank":42,"name":"Ryan Rollins","team":"MIL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":4.38,"zp":1.49,"zl":2.89,"gp":69},{"id":43,"rank":43,"name":"Walker Kessler","team":"LAL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":4.35,"zp":2.9,"zl":-8.7,"gp":67},{"id":44,"rank":44,"name":"LaMelo Ball","team":"MIN","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":4.28,"zp":1.06,"zl":2.85,"gp":60},{"id":45,"rank":45,"name":"VJ Edgecombe","team":"PHI","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":4.14,"zp":1.52,"zl":2.62,"gp":75},{"id":46,"rank":46,"name":"OG Anunoby","team":"NYK","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":4.1,"zp":1.42,"zl":2.68,"gp":67},{"id":47,"rank":47,"name":"Anthony Davis","team":"WAS","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":4.09,"zp":2.73,"zl":-5.67,"gp":58},{"id":48,"rank":48,"name":"Alperen Şengün","team":"HOU","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":4.08,"zp":1.46,"zl":2.62,"gp":72},{"id":49,"rank":49,"name":"Devin Booker","team":"PHX","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":4.05,"zp":2.7,"zl":1.08,"gp":68},{"id":50,"rank":50,"name":"DeMar DeRozan","team":"DEN","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":4.0,"zp":-0.98,"zl":2.67,"gp":74},{"id":51,"rank":51,"name":"Julius Randle","team":"BKN","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":3.96,"zp":-0.32,"zl":2.64,"gp":72},{"id":52,"rank":52,"name":"Domantas Sabonis","team":"SAC","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":3.79,"zp":2.53,"zl":-7.04,"gp":69},{"id":53,"rank":53,"name":"Jalen Williams","team":"OKC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":3.78,"zp":2.52,"zl":-4.69,"gp":69},{"id":54,"rank":54,"name":"Evan Mobley","team":"CLE","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":3.7,"zp":2.33,"zl":1.37,"gp":70},{"id":55,"rank":55,"name":"Naz Reid","team":"CHA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":3.61,"zp":1.73,"zl":1.88,"gp":76},{"id":56,"rank":56,"name":"Brandon Miller","team":"CHA","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":3.58,"zp":2.34,"zl":1.24,"gp":68},{"id":57,"rank":57,"name":"Jay Huff","team":"IND","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":3.57,"zp":-3.63,"zl":2.38,"gp":66},{"id":58,"rank":58,"name":"Brandon Ingram","team":"LAC","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"O","max":3.45,"zp":-2.6,"zl":2.3,"gp":55},{"id":59,"rank":59,"name":"Kyrie Irving","team":"DAL","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":3.44,"zp":2.29,"zl":null,"gp":60},{"id":60,"rank":60,"name":"Collin Gillespie","team":"PHX","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":3.38,"zp":-0.36,"zl":2.25,"gp":70},{"id":61,"rank":61,"name":"Jaylen Brown","team":"PHI","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"Q","max":3.13,"zp":-0.19,"zl":2.09,"gp":69},{"id":62,"rank":62,"name":"Cason Wallace","team":"OKC","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"Q","max":3.11,"zp":1.82,"zl":1.29,"gp":73},{"id":63,"rank":63,"name":"Tyler Herro","team":"MIL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":3.06,"zp":2.04,"zl":-3.98,"gp":66},{"id":64,"rank":64,"name":"Immanuel Quickley","team":"TOR","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":3.04,"zp":0.94,"zl":2.03,"gp":71},{"id":65,"rank":65,"name":"Jabari Smith Jr.","team":"HOU","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":3.01,"zp":-0.2,"zl":2.01,"gp":73},{"id":66,"rank":66,"name":"Donte DiVincenzo","team":"MIN","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"O","max":3.01,"zp":-7.12,"zl":2.01,"gp":33},{"id":67,"rank":67,"name":"Ivica Zubac","team":"IND","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":2.73,"zp":1.82,"zl":-2.76,"gp":72},{"id":68,"rank":68,"name":"Darius Garland","team":"LAC","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":2.44,"zp":1.63,"zl":-3.31,"gp":68},{"id":69,"rank":69,"name":"Andrew Wiggins","team":"MIA","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"Q","max":2.35,"zp":-0.45,"zl":1.57,"gp":68},{"id":70,"rank":70,"name":"Jaren Jackson Jr.","team":"UTA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":2.28,"zp":1.52,"zl":-1.33,"gp":66},{"id":71,"rank":71,"name":"Josh Giddey","team":"CHI","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":2.25,"zp":1.5,"zl":-0.97,"gp":69},{"id":72,"rank":72,"name":"Michael Porter Jr.","team":"BKN","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":2.22,"zp":1.48,"zl":0.29,"gp":65},{"id":73,"rank":73,"name":"Julian Champagnie","team":"SAS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":2.22,"zp":-1.22,"zl":1.48,"gp":78},{"id":74,"rank":74,"name":"Franz Wagner","team":"ORL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":2.22,"zp":1.48,"zl":-4.46,"gp":66},{"id":75,"rank":75,"name":"Damian Lillard","team":"POR","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":2.21,"zp":1.47,"zl":null,"gp":62},{"id":76,"rank":76,"name":"Rudy Gobert","team":"MIN","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":2.19,"zp":0.09,"zl":1.46,"gp":73},{"id":77,"rank":77,"name":"De'Aaron Fox","team":"SAS","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":2.06,"zp":0.18,"zl":1.37,"gp":69},{"id":78,"rank":78,"name":"Brandin Podziemski","team":"GSW","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":2.01,"zp":0.41,"zl":1.34,"gp":75},{"id":79,"rank":79,"name":"Saddiq Bey","team":"NOP","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":1.95,"zp":-0.75,"zl":1.3,"gp":70},{"id":80,"rank":80,"name":"Miles Bridges","team":"PHX","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":1.86,"zp":-0.03,"zl":1.24,"gp":71},{"id":81,"rank":81,"name":"Zach Edey","team":"MEM","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.81,"zp":1.21,"zl":-7.69,"gp":60},{"id":82,"rank":82,"name":"Wendell Carter Jr.","team":"ORL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.72,"zp":-2.13,"zl":1.15,"gp":68},{"id":83,"rank":83,"name":"Giannis Antetokounmpo","team":"MIA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":1.69,"zp":1.13,"zl":-3.98,"gp":68},{"id":84,"rank":84,"name":"Ty Jerome","team":"MEM","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":1.69,"zp":1.13,"zl":-7.06,"gp":65},{"id":85,"rank":85,"name":"Keyonte George","team":"UTA","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":1.65,"zp":1.1,"zl":0.35,"gp":67},{"id":86,"rank":86,"name":"Toumani Camara","team":"POR","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":1.62,"zp":-0.55,"zl":1.08,"gp":73},{"id":87,"rank":87,"name":"Derik Queen","team":"NOP","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":1.56,"zp":0.57,"zl":0.99,"gp":72},{"id":88,"rank":88,"name":"Jaime Jaquez Jr.","team":"MIL","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":1.42,"zp":0.95,"zl":-0.79,"gp":71},{"id":89,"rank":89,"name":"Nikola Vučević","team":"ORL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.42,"zp":-4.5,"zl":0.95,"gp":69},{"id":90,"rank":90,"name":"Deni Avdija","team":"POR","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":1.36,"zp":0.63,"zl":0.73,"gp":72},{"id":91,"rank":91,"name":"Ausar Thompson","team":"DET","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":1.33,"zp":0.38,"zl":0.89,"gp":67},{"id":92,"rank":92,"name":"Deandre Ayton","team":"WAS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.32,"zp":-3.48,"zl":0.88,"gp":66},{"id":93,"rank":93,"name":"Sandro Mamukelashvili","team":"LAL","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":1.23,"zp":-0.95,"zl":0.82,"gp":74},{"id":94,"rank":94,"name":"Trae Young","team":"WAS","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":1.19,"zp":0.79,"zl":-7.74,"gp":68},{"id":95,"rank":95,"name":"Myles Turner","team":"MIL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.17,"zp":-0.44,"zl":0.78,"gp":68},{"id":96,"rank":96,"name":"Jarrett Allen","team":"CLE","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":1.12,"zp":0.75,"zl":-0.47,"gp":68},{"id":97,"rank":97,"name":"Josh Hart","team":"NYK","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":1.09,"zp":0.73,"zl":0.29,"gp":72},{"id":98,"rank":98,"name":"Cameron Boozer","team":"MEM","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":1.08,"zp":0.72,"zl":null,"gp":75},{"id":99,"rank":99,"name":"Royce O'Neale","team":"CHA","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":0.89,"zp":-1.59,"zl":0.59,"gp":76},{"id":100,"rank":100,"name":"LeBron James","team":"PHI","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":0.87,"zp":-0.04,"zl":0.58,"gp":66},{"id":101,"rank":101,"name":"Darryn Peterson","team":"UTA","pos":"SG","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":0},"inj":"","max":0.84,"zp":0.56,"zl":null,"gp":73},{"id":102,"rank":102,"name":"CJ McCollum","team":"ATL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.83,"zp":-0.34,"zl":0.55,"gp":73},{"id":103,"rank":103,"name":"Tre Jones","team":"CHI","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":0.75,"zp":-1.63,"zl":0.5,"gp":65},{"id":104,"rank":104,"name":"Ayo Dosunmu","team":"MIN","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":0.73,"zp":0.06,"zl":0.49,"gp":73},{"id":105,"rank":105,"name":"Dylan Harper","team":"SAS","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.66,"zp":0.44,"zl":-2.1,"gp":72},{"id":106,"rank":106,"name":"Christian Braun","team":"DEN","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":0.57,"zp":0.38,"zl":-4.47,"gp":74},{"id":107,"rank":107,"name":"Cedric Coward","team":"MEM","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":0.55,"zp":0.37,"zl":-1.85,"gp":70},{"id":108,"rank":108,"name":"Keegan Murray","team":"SAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":0.52,"zp":0.35,"zl":-6.3,"gp":70},{"id":109,"rank":109,"name":"Caleb Wilson","team":"CHI","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":0.52,"zp":0.35,"zl":null,"gp":72},{"id":110,"rank":110,"name":"Kris Dunn","team":"LAC","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":0.45,"zp":-2.43,"zl":0.3,"gp":70},{"id":111,"rank":111,"name":"Stephon Castle","team":"SAS","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.38,"zp":0.25,"zl":-1.47,"gp":73},{"id":112,"rank":112,"name":"Cam Spencer","team":"MEM","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":0.38,"zp":-2.46,"zl":0.25,"gp":67},{"id":113,"rank":113,"name":"Pascal Siakam","team":"IND","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":0.35,"zp":0.23,"zl":-1.13,"gp":70},{"id":114,"rank":114,"name":"Coby White","team":"CHA","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.35,"zp":0.23,"zl":-4.81,"gp":69},{"id":115,"rank":115,"name":"Moussa Diabaté","team":"CHA","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":0.33,"zp":-3.58,"zl":0.22,"gp":65},{"id":116,"rank":116,"name":"Khaman Maluach","team":"PHX","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":0.21,"zp":0.14,"zl":-7.67,"gp":68},{"id":117,"rank":117,"name":"Ajay Mitchell","team":"OKC","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.2,"zp":0.13,"zl":-1.5,"gp":67},{"id":118,"rank":118,"name":"Kyle Filipowski","team":"UTA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":0.18,"zp":-2.79,"zl":0.12,"gp":65},{"id":119,"rank":119,"name":"John Collins","team":"DET","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":0.17,"zp":-0.4,"zl":0.11,"gp":65},{"id":120,"rank":120,"name":"Paolo Banchero","team":"ORL","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":0.12,"zp":-1.14,"zl":0.08,"gp":70},{"id":121,"rank":121,"name":"Jalen Suggs","team":"ORL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":0.06,"zp":-0.6,"zl":0.04,"gp":60},{"id":122,"rank":122,"name":"Yaxel Lendeborg","team":"GSW","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":0.01,"zp":0.01,"zl":null,"gp":74},{"id":123,"rank":123,"name":"Mark Williams","team":"PHX","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"O","max":-0.01,"zp":-7.68,"zl":-0.01,"gp":20},{"id":124,"rank":124,"name":"Dejounte Murray","team":"NOP","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-0.06,"zp":-0.04,"zl":-7.47,"gp":65},{"id":125,"rank":125,"name":"Alex Sarr","team":"WAS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-0.18,"zp":-0.12,"zl":-1.47,"gp":67},{"id":126,"rank":126,"name":"Maxime Raynaud","team":"SAC","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"O","max":-0.3,"zp":-5.21,"zl":-0.2,"gp":65},{"id":127,"rank":127,"name":"Davion Mitchell","team":"MIA","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-0.32,"zp":-0.21,"zl":-1.6,"gp":72},{"id":128,"rank":128,"name":"Keldon Johnson","team":"SAS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-0.33,"zp":-1.98,"zl":-0.22,"gp":78},{"id":129,"rank":129,"name":"Nic Claxton","team":"CHI","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-0.63,"zp":-0.42,"zl":-1.08,"gp":70},{"id":130,"rank":130,"name":"Jake LaRavia","team":"LAL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-0.75,"zp":-1.72,"zl":-0.5,"gp":69},{"id":131,"rank":131,"name":"Day'Ron Sharpe","team":"BKN","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-0.75,"zp":-0.5,"zl":-2.85,"gp":66},{"id":132,"rank":132,"name":"Ryan Kalkbrenner","team":"CHA","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-0.87,"zp":-3.38,"zl":-0.58,"gp":69},{"id":133,"rank":133,"name":"Egor Dëmin","team":"BKN","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-0.87,"zp":-0.58,"zl":-4.46,"gp":70},{"id":134,"rank":134,"name":"Norman Powell","team":"CHI","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-0.89,"zp":-0.59,"zl":-0.62,"gp":66},{"id":135,"rank":135,"name":"Isaiah Hartenstein","team":"OKC","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-0.98,"zp":-0.65,"zl":-3.01,"gp":65},{"id":136,"rank":136,"name":"Collin Murray-Boyles","team":"TOR","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-0.99,"zp":-0.66,"zl":-2.9,"gp":70},{"id":137,"rank":137,"name":"Naji Marshall","team":"DAL","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-1.01,"zp":-2.71,"zl":-0.67,"gp":71},{"id":138,"rank":138,"name":"Zach LaVine","team":"SAC","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.06,"zp":-0.71,"zl":-4.37,"gp":67},{"id":139,"rank":139,"name":"Brayden Burries","team":"MIL","pos":"SG","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-1.06,"zp":-0.71,"zl":null,"gp":75},{"id":140,"rank":140,"name":"Devin Vassell","team":"SAS","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-1.08,"zp":-1.07,"zl":-0.72,"gp":69},{"id":141,"rank":141,"name":"Tobias Harris","team":"SAS","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-1.16,"zp":-1.62,"zl":-0.77,"gp":71},{"id":142,"rank":142,"name":"Luke Kornet","team":"SAS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-1.16,"zp":-2.72,"zl":-0.77,"gp":69},{"id":143,"rank":143,"name":"Quentin Grimes","team":"LAL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.19,"zp":-1.28,"zl":-0.79,"gp":71},{"id":144,"rank":144,"name":"Grayson Allen","team":"CHA","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-1.22,"zp":-0.81,"zl":-1.98,"gp":68},{"id":145,"rank":145,"name":"Zion Williamson","team":"NOP","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-1.24,"zp":-0.83,"zl":-1.07,"gp":64},{"id":146,"rank":146,"name":"Duncan Robinson","team":"DET","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.3,"zp":-4.5,"zl":-0.87,"gp":70},{"id":147,"rank":147,"name":"Tim Hardaway Jr.","team":"MIA","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.35,"zp":-3.41,"zl":-0.9,"gp":75},{"id":148,"rank":148,"name":"Joel Embiid","team":"PHI","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-1.38,"zp":-0.92,"zl":-1.82,"gp":49},{"id":149,"rank":149,"name":"Max Christie","team":"DAL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.42,"zp":-4.53,"zl":-0.95,"gp":73},{"id":150,"rank":150,"name":"Javonte Green","team":"DET","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-1.52,"zp":-5.14,"zl":-1.01,"gp":61},{"id":151,"rank":151,"name":"Scoot Henderson","team":"POR","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-1.53,"zp":-1.02,"zl":-6.84,"gp":65},{"id":152,"rank":152,"name":"Peyton Watson","team":"CLE","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-1.59,"zp":-1.06,"zl":-2.31,"gp":71},{"id":153,"rank":153,"name":"Tristan da Silva","team":"ORL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-1.64,"zp":-3.35,"zl":-1.09,"gp":76},{"id":154,"rank":154,"name":"Anthony Black","team":"ORL","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-1.65,"zp":-1.1,"zl":-1.4,"gp":70},{"id":155,"rank":155,"name":"Jeremiah Fears","team":"NOP","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-1.67,"zp":-1.58,"zl":-1.11,"gp":75},{"id":156,"rank":156,"name":"Jordan Goodwin","team":"PHX","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-1.68,"zp":-3.25,"zl":-1.12,"gp":65},{"id":157,"rank":157,"name":"Collin Sexton","team":"LAL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-1.69,"zp":-1.27,"zl":-1.13,"gp":68},{"id":158,"rank":158,"name":"Kyshawn George","team":"WAS","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-1.83,"zp":-1.22,"zl":-2.95,"gp":68},{"id":159,"rank":159,"name":"Paul George","team":"BOS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-1.84,"zp":-1.23,"zl":-3.03,"gp":59},{"id":160,"rank":160,"name":"Jaylon Tyson","team":"CLE","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-1.84,"zp":-3.48,"zl":-1.23,"gp":69},{"id":161,"rank":161,"name":"Justin Champagnie","team":"WAS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-1.84,"zp":-3.95,"zl":-1.23,"gp":58},{"id":162,"rank":162,"name":"Robert Williams III","team":"POR","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-1.92,"zp":-4.72,"zl":-1.28,"gp":45},{"id":163,"rank":163,"name":"Bobby Portis Jr.","team":"MIA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-2.0,"zp":-2.33,"zl":-1.33,"gp":64},{"id":164,"rank":164,"name":"Brook Lopez","team":"LAC","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-2.06,"zp":-3.24,"zl":-1.37,"gp":72},{"id":165,"rank":165,"name":"Isaiah Joe","team":"DET","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-2.08,"zp":-2.28,"zl":-1.39,"gp":73},{"id":166,"rank":166,"name":"Ace Bailey","team":"UTA","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-2.15,"zp":-1.72,"zl":-1.43,"gp":72},{"id":167,"rank":167,"name":"Isaiah Stewart","team":"MEM","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"O","max":-2.21,"zp":-1.47,"zl":-2.45,"gp":68},{"id":168,"rank":168,"name":"Kevin Porter Jr.","team":"MIL","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-2.22,"zp":-1.48,"zl":-1.67,"gp":60},{"id":169,"rank":169,"name":"Yves Missi","team":"NOP","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-2.22,"zp":-1.48,"zl":-3.45,"gp":69},{"id":170,"rank":170,"name":"Luke Kennard","team":"PHX","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-2.28,"zp":-5.09,"zl":-1.52,"gp":67},{"id":171,"rank":171,"name":"Morez Johnson Jr.","team":"DAL","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-2.28,"zp":-1.52,"zl":null,"gp":75},{"id":172,"rank":172,"name":"Sam Hauser","team":"BOS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-2.29,"zp":-2.02,"zl":-1.53,"gp":76},{"id":173,"rank":173,"name":"Kristaps Porziņģis","team":"GSW","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-2.47,"zp":-1.65,"zl":-4.7,"gp":55},{"id":174,"rank":174,"name":"Precious Achiuwa","team":"SAC","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-2.52,"zp":-3.07,"zl":-1.68,"gp":69},{"id":175,"rank":175,"name":"Herbert Jones","team":"NOP","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-2.55,"zp":-1.7,"zl":-3.12,"gp":65},{"id":176,"rank":176,"name":"Jimmy Butler III","team":"GSW","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"O","max":-2.56,"zp":-5.27,"zl":-1.71,"gp":35},{"id":177,"rank":177,"name":"Fred VanVleet","team":"HOU","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-2.64,"zp":-1.76,"zl":null,"gp":60},{"id":178,"rank":178,"name":"Jalen Green","team":"PHX","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-2.67,"zp":-1.78,"zl":-6.66,"gp":72},{"id":179,"rank":179,"name":"Paul Reed","team":"DET","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-2.79,"zp":-1.86,"zl":-2.23,"gp":66},{"id":180,"rank":180,"name":"Brice Sensabaugh","team":"UTA","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-2.85,"zp":-4.18,"zl":-1.9,"gp":70},{"id":181,"rank":181,"name":"Bruce Brown","team":"NYK","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-2.85,"zp":-7.95,"zl":-1.9,"gp":60},{"id":182,"rank":182,"name":"AJ Dybantsa","team":"WAS","pos":"SF","p":{"C":0,"PG":0,"PF":0,"SG":0,"SF":1},"inj":"","max":-2.86,"zp":-1.91,"zl":null,"gp":78},{"id":183,"rank":183,"name":"Jrue Holiday","team":"POR","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-2.92,"zp":-1.95,"zl":-2.28,"gp":65},{"id":184,"rank":184,"name":"Kevin Huerter","team":"DET","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-2.94,"zp":-3.14,"zl":-1.96,"gp":68},{"id":185,"rank":185,"name":"Dominick Barlow","team":"PHI","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-2.96,"zp":-6.4,"zl":-1.97,"gp":53},{"id":186,"rank":186,"name":"Oso Ighodaro","team":"PHX","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-3.04,"zp":-5.48,"zl":-2.03,"gp":74},{"id":187,"rank":187,"name":"Moses Moody","team":"GSW","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"O","max":-3.09,"zp":-8.47,"zl":-2.06,"gp":30},{"id":188,"rank":188,"name":"AJ Green","team":"MIL","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.12,"zp":-6.02,"zl":-2.08,"gp":70},{"id":189,"rank":189,"name":"Aaron Gordon","team":"DEN","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-3.13,"zp":-2.09,"zl":-4.98,"gp":65},{"id":190,"rank":190,"name":"Andrew Nembhard","team":"IND","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-3.18,"zp":-2.19,"zl":-2.12,"gp":68},{"id":191,"rank":191,"name":"De'Anthony Melton","team":"GSW","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-3.19,"zp":-2.13,"zl":-4.03,"gp":60},{"id":192,"rank":192,"name":"Harrison Barnes","team":"SAS","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-3.3,"zp":-4.68,"zl":-2.2,"gp":80},{"id":193,"rank":193,"name":"Gary Payton II","team":"GSW","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.33,"zp":-5.08,"zl":-2.22,"gp":60},{"id":194,"rank":194,"name":"Mitchell Robinson","team":"BOS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-3.38,"zp":-3.23,"zl":-2.25,"gp":63},{"id":195,"rank":195,"name":"Darius Acuff Jr.","team":"SAC","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-3.39,"zp":-2.26,"zl":null,"gp":76},{"id":196,"rank":196,"name":"Rui Hachimura","team":"LAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.46,"zp":-2.31,"zl":-2.63,"gp":65},{"id":197,"rank":197,"name":"Daniel Gafford","team":"DAL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-3.53,"zp":-3.11,"zl":-2.35,"gp":59},{"id":198,"rank":198,"name":"Keon Ellis","team":"BKN","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.6,"zp":-3.35,"zl":-2.4,"gp":72},{"id":199,"rank":199,"name":"Ronald Holland II","team":"DET","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.66,"zp":-2.44,"zl":-2.52,"gp":79},{"id":200,"rank":200,"name":"Draymond Green","team":"GSW","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-3.66,"zp":-3.34,"zl":-2.44,"gp":66},{"id":201,"rank":201,"name":"Jerami Grant","team":"MEM","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.66,"zp":-3.38,"zl":-2.44,"gp":59},{"id":202,"rank":202,"name":"Dru Smith","team":"MIA","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-3.68,"zp":-4.65,"zl":-2.45,"gp":60},{"id":203,"rank":203,"name":"Aaron Nesmith","team":"IND","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.68,"zp":-2.45,"zl":-4.9,"gp":65},{"id":204,"rank":204,"name":"Russell Westbrook","team":"SAC","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"NA","max":-3.69,"zp":-3.39,"zl":-2.46,"gp":65},{"id":205,"rank":205,"name":"Gui Santos","team":"GSW","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.72,"zp":-2.48,"zl":-3.13,"gp":68},{"id":206,"rank":206,"name":"Cameron Johnson","team":"DEN","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.74,"zp":-2.96,"zl":-2.49,"gp":56},{"id":207,"rank":207,"name":"Luguentz Dort","team":"ATL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-3.74,"zp":-2.49,"zl":-3.29,"gp":71},{"id":208,"rank":208,"name":"Tari Eason","team":"HOU","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-3.75,"zp":-2.71,"zl":-2.5,"gp":60},{"id":209,"rank":209,"name":"Jaylen Wells","team":"MEM","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.76,"zp":-2.51,"zl":-3.11,"gp":70},{"id":210,"rank":210,"name":"Jarace Walker","team":"IND","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.78,"zp":-3.49,"zl":-2.52,"gp":70},{"id":211,"rank":211,"name":"Bilal Coulibaly","team":"WAS","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-3.78,"zp":-4.04,"zl":-2.52,"gp":58},{"id":212,"rank":212,"name":"Jamal Shead","team":"TOR","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-3.79,"zp":-2.53,"zl":-3.09,"gp":79},{"id":213,"rank":213,"name":"Kelly Oubre Jr.","team":"IND","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-3.82,"zp":-2.55,"zl":-2.72,"gp":68},{"id":214,"rank":214,"name":"P.J. Washington","team":"DAL","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-3.88,"zp":-2.77,"zl":-2.59,"gp":62},{"id":215,"rank":215,"name":"John Konchar","team":"NYK","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"NA","max":-3.88,"zp":-7.61,"zl":-2.59,"gp":53},{"id":216,"rank":216,"name":"Keaton Wagler","team":"LAC","pos":"SG","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":0},"inj":"","max":-3.93,"zp":-2.62,"zl":null,"gp":75},{"id":217,"rank":217,"name":"Ja'Kobe Walter","team":"TOR","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-3.99,"zp":-3.97,"zl":-2.66,"gp":69},{"id":218,"rank":218,"name":"Jakob Poeltl","team":"TOR","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.0,"zp":-2.67,"zl":-3.44,"gp":60},{"id":219,"rank":219,"name":"Pelle Larsson","team":"MIA","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-4.02,"zp":-3.27,"zl":-2.68,"gp":70},{"id":220,"rank":220,"name":"Jock Landale","team":"ATL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.05,"zp":-6.41,"zl":-2.7,"gp":57},{"id":221,"rank":221,"name":"Dillon Brooks","team":"PHX","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-4.06,"zp":-2.71,"zl":-2.91,"gp":70},{"id":222,"rank":222,"name":"Goga Bitadze","team":"ORL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.06,"zp":-4.79,"zl":-2.71,"gp":65},{"id":223,"rank":223,"name":"Marcus Smart","team":"HOU","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-4.14,"zp":-5.84,"zl":-2.76,"gp":68},{"id":224,"rank":224,"name":"Aaron Wiggins","team":"ATL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-4.17,"zp":-2.78,"zl":-3.87,"gp":71},{"id":225,"rank":225,"name":"RJ Barrett","team":"TOR","pos":"SG,SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":1,"SF":1},"inj":"","max":-4.19,"zp":-4.04,"zl":-2.79,"gp":64},{"id":226,"rank":226,"name":"Jaylin Williams","team":"OKC","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-4.21,"zp":-4.69,"zl":-2.81,"gp":60},{"id":227,"rank":227,"name":"Kingston Flemings","team":"ATL","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.23,"zp":-2.82,"zl":null,"gp":74},{"id":228,"rank":228,"name":"Miles McBride","team":"NYK","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-4.3,"zp":-2.87,"zl":-5.02,"gp":66},{"id":229,"rank":229,"name":"Kyle Kuzma","team":"MIL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-4.33,"zp":-3.92,"zl":-2.89,"gp":65},{"id":230,"rank":230,"name":"Santi Aldama","team":"DAL","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-4.38,"zp":-2.92,"zl":-3.81,"gp":68},{"id":231,"rank":231,"name":"Bub Carrington","team":"WAS","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-4.38,"zp":-4.43,"zl":-2.92,"gp":80},{"id":232,"rank":232,"name":"Noah Clowney","team":"BKN","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-4.46,"zp":-4.45,"zl":-2.97,"gp":60},{"id":233,"rank":233,"name":"Bennedict Mathurin","team":"NOP","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-4.49,"zp":-5.81,"zl":-2.99,"gp":65},{"id":234,"rank":234,"name":"Marvin Bagley III","team":"DEN","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-4.57,"zp":-6.81,"zl":-3.05,"gp":49},{"id":235,"rank":235,"name":"Scotty Pippen Jr.","team":"MEM","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.62,"zp":-3.08,"zl":-8.61,"gp":65},{"id":236,"rank":236,"name":"Andre Drummond","team":"NYK","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.65,"zp":-4.51,"zl":-3.1,"gp":67},{"id":237,"rank":237,"name":"T.J. McConnell","team":"IND","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-4.74,"zp":-3.69,"zl":-3.16,"gp":69},{"id":238,"rank":238,"name":"Daniss Jenkins","team":"DET","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-4.75,"zp":-3.17,"zl":-3.73,"gp":70},{"id":239,"rank":239,"name":"Max Strus","team":"LAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"O","max":-4.75,"zp":-3.17,"zl":-8.56,"gp":63},{"id":240,"rank":240,"name":"Mikel Brown Jr.","team":"BKN","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-4.75,"zp":-3.17,"zl":null,"gp":74},{"id":241,"rank":241,"name":"Zaccharie Risacher","team":"DAL","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-4.79,"zp":-3.27,"zl":-3.19,"gp":70},{"id":242,"rank":242,"name":"Derrick Jones Jr.","team":"LAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-4.79,"zp":-3.19,"zl":-3.35,"gp":67},{"id":243,"rank":243,"name":"Dylan Cardwell","team":"SAC","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-4.79,"zp":-3.19,"zl":-4.18,"gp":72},{"id":244,"rank":244,"name":"Sam Merrill","team":"CLE","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-4.86,"zp":-4.18,"zl":-3.24,"gp":61},{"id":245,"rank":245,"name":"Will Richard","team":"GSW","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-4.88,"zp":-6.42,"zl":-3.25,"gp":69},{"id":246,"rank":246,"name":"Jaxson Hayes","team":"UTA","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-4.92,"zp":-6.79,"zl":-3.28,"gp":60},{"id":247,"rank":247,"name":"Jalen Smith","team":"CHI","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-4.98,"zp":-4.37,"zl":-3.32,"gp":58},{"id":248,"rank":248,"name":"Ziaire Williams","team":"LAL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-4.98,"zp":-9.01,"zl":-3.32,"gp":38},{"id":249,"rank":249,"name":"Alex Caruso","team":"OKC","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-5.0,"zp":-3.33,"zl":-4.19,"gp":58},{"id":250,"rank":250,"name":"Tre Johnson","team":"WAS","pos":"PG,SG,SF","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":1},"inj":"","max":-5.0,"zp":-3.33,"zl":-4.75,"gp":69},{"id":251,"rank":251,"name":"Brandon Williams","team":"GSW","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-5.0,"zp":-7.14,"zl":-3.33,"gp":45},{"id":252,"rank":252,"name":"Luka Garza","team":"BOS","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-5.05,"zp":-7.99,"zl":-3.37,"gp":52},{"id":253,"rank":253,"name":"Adem Bona","team":"PHI","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-5.18,"zp":-3.45,"zl":-3.68,"gp":66},{"id":254,"rank":254,"name":"Malik Monk","team":"SAC","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-5.28,"zp":-4.5,"zl":-3.52,"gp":65},{"id":255,"rank":255,"name":"Jordan Walsh","team":"BOS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-5.29,"zp":-6.64,"zl":-3.53,"gp":70},{"id":256,"rank":256,"name":"Jose Alvarado","team":"NYK","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-5.32,"zp":-7.03,"zl":-3.55,"gp":63},{"id":257,"rank":257,"name":"Dennis Schröder","team":"CHA","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-5.35,"zp":-4.88,"zl":-3.57,"gp":69},{"id":258,"rank":258,"name":"Dereck Lively II","team":"DAL","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-5.37,"zp":-3.58,"zl":-9.01,"gp":50},{"id":259,"rank":259,"name":"Vít Krejčí","team":"POR","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-5.42,"zp":-7.14,"zl":-3.61,"gp":55},{"id":260,"rank":260,"name":"Joan Beringer","team":"MIN","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-5.47,"zp":-3.65,"zl":-7.52,"gp":69},{"id":261,"rank":261,"name":"Mouhamed Gueye","team":"ATL","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-5.5,"zp":-7.79,"zl":-3.67,"gp":51},{"id":262,"rank":262,"name":"Isaiah Collier","team":"UTA","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-5.52,"zp":-6.11,"zl":-3.68,"gp":64},{"id":263,"rank":263,"name":"Isaac Okoro","team":"CHI","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-5.54,"zp":-5.34,"zl":-3.69,"gp":64},{"id":264,"rank":264,"name":"Ja Morant","team":"POR","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-5.54,"zp":-3.69,"zl":-7.19,"gp":60},{"id":265,"rank":265,"name":"Baylor Scheierman","team":"BOS","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-5.55,"zp":-3.78,"zl":-3.7,"gp":70},{"id":266,"rank":266,"name":"Nique Clifford","team":"SAC","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-5.56,"zp":-3.71,"zl":-3.92,"gp":75},{"id":267,"rank":267,"name":"Karlo Matković","team":"NOP","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-5.56,"zp":-5.82,"zl":-3.71,"gp":54},{"id":268,"rank":268,"name":"Bones Hyland","team":"MIN","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-5.59,"zp":-6.74,"zl":-3.73,"gp":50},{"id":269,"rank":269,"name":"Al Horford","team":"GSW","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-5.66,"zp":-6.13,"zl":-3.77,"gp":53},{"id":270,"rank":270,"name":"Shaedon Sharpe","team":"POR","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"O","max":-5.67,"zp":-7.76,"zl":-3.78,"gp":30},{"id":271,"rank":271,"name":"Craig Porter Jr.","team":"CLE","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-5.76,"zp":-7.46,"zl":-3.84,"gp":58},{"id":272,"rank":272,"name":"Dean Wade","team":"PHI","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-5.82,"zp":-3.94,"zl":-3.88,"gp":64},{"id":273,"rank":273,"name":"Anfernee Simons","team":"PHI","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-5.85,"zp":-3.9,"zl":-3.98,"gp":68},{"id":274,"rank":274,"name":"Jonathan Kuminga","team":"MIN","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":-5.85,"zp":-3.9,"zl":-6.93,"gp":68},{"id":275,"rank":275,"name":"Ryan Dunn","team":"PHX","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-6.01,"zp":-4.24,"zl":-4.01,"gp":72},{"id":276,"rank":276,"name":"Quinten Post","team":"MEM","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-6.03,"zp":-5.08,"zl":-4.02,"gp":69},{"id":277,"rank":277,"name":"Klay Thompson","team":"MIA","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-6.03,"zp":-6.46,"zl":-4.02,"gp":67},{"id":278,"rank":278,"name":"Simone Fontecchio","team":"MIA","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-6.09,"zp":-6.01,"zl":-4.06,"gp":70},{"id":279,"rank":279,"name":"GG Jackson","team":"MEM","pos":"SF,PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-6.2,"zp":-6.19,"zl":-4.13,"gp":67},{"id":280,"rank":280,"name":"Will Riley","team":"WAS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-6.3,"zp":-6.47,"zl":-4.2,"gp":70},{"id":281,"rank":281,"name":"Terrence Shannon Jr.","team":"MIN","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-6.35,"zp":-4.23,"zl":-8.12,"gp":69},{"id":282,"rank":282,"name":"Jonas Valančiūnas","team":"DEN","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"NA","max":-6.39,"zp":-6.5,"zl":-4.26,"gp":56},{"id":283,"rank":283,"name":"De'Andre Hunter","team":"SAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"","max":-6.63,"zp":-4.42,"zl":-5.57,"gp":65},{"id":284,"rank":284,"name":"Clint Capela","team":"HOU","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-6.63,"zp":-7.88,"zl":-4.42,"gp":55},{"id":285,"rank":285,"name":"Isaiah Jackson","team":"LAC","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-6.76,"zp":-5.31,"zl":-4.51,"gp":55},{"id":286,"rank":286,"name":"Jusuf Nurkić","team":"UTA","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"O","max":-6.79,"zp":-4.69,"zl":-4.53,"gp":50},{"id":287,"rank":287,"name":"Nicolas Batum","team":"LAC","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"NA","max":-6.81,"zp":-6.95,"zl":-4.54,"gp":57},{"id":288,"rank":288,"name":"Terance Mann","team":"BKN","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-6.87,"zp":-7.28,"zl":-4.58,"gp":66},{"id":289,"rank":289,"name":"Jared McCain","team":"OKC","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"Q","max":-7.04,"zp":-4.69,"zl":-5.34,"gp":67},{"id":290,"rank":290,"name":"Khris Middleton","team":"WAS","pos":"SF,PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":1},"inj":"Q","max":-7.1,"zp":-6.49,"zl":-4.73,"gp":53},{"id":291,"rank":291,"name":"Caris LeVert","team":"MIL","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-7.8,"zp":-8.07,"zl":-5.2,"gp":60},{"id":292,"rank":292,"name":"K. Caldwell-Pope","team":"PHI","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-8.07,"zp":-5.82,"zl":-5.38,"gp":64},{"id":293,"rank":293,"name":"Aday Mara","team":"OKC","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"","max":-8.22,"zp":-5.48,"zl":null,"gp":70},{"id":294,"rank":294,"name":"Gradey Dick","team":"LAC","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"","max":-8.25,"zp":-6.29,"zl":-5.5,"gp":69},{"id":295,"rank":295,"name":"Jordan Poole","team":"NOP","pos":"PG,SG","p":{"C":0,"PG":1,"PF":0,"SG":1,"SF":0},"inj":"","max":-9.09,"zp":-6.06,"zl":-6.46,"gp":58},{"id":296,"rank":296,"name":"Allen Graves","team":"TOR","pos":"PF","p":{"C":0,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"Q","max":-9.33,"zp":-6.22,"zl":null,"gp":70},{"id":297,"rank":297,"name":"Bradley Beal","team":"LAC","pos":"SG,SF","p":{"C":0,"PG":0,"PF":0,"SG":1,"SF":1},"inj":"Q","max":-9.95,"zp":-6.63,"zl":-9.7,"gp":50},{"id":298,"rank":298,"name":"Zach Collins","team":"CHI","pos":"C","p":{"C":1,"PG":0,"PF":0,"SG":0,"SF":0},"inj":"Q","max":-10.06,"zp":-6.71,"zl":-8.89,"gp":55},{"id":299,"rank":299,"name":"Nikola Jović","team":"MIA","pos":"PF,C","p":{"C":1,"PG":0,"PF":1,"SG":0,"SF":0},"inj":"","max":-10.59,"zp":-7.06,"zl":-7.73,"gp":50},{"id":300,"rank":300,"name":"Ben Simmons","team":"SAC","pos":"PG","p":{"C":0,"PG":1,"PF":0,"SG":0,"SF":0},"inj":"","max":-15.86,"zp":-10.57,"zl":null,"gp":15}];
 const TEAMS = 16;
 const POS = ["PG", "SG", "SF", "PF", "C"];
-const KEY = "nba-draft-board-v1";
-const byId = Object.fromEntries(PLAYERS.map(p => [p.id, p]));
+const KEY = "nba-draft-board-paste-v1";
+const SUFFIX = new Set(["jr", "sr", "ii", "iii", "iv"]);
 
-let state = { picks: [] }; // [{id, mine}]
-try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.picks)) state = s; } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+const norm = s => " " + s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .replace(/ł/g, "l").replace(/[^a-z]+/g, " ").trim() + " ";
 
-let filterPos = "", query = "", showTaken = false;
+// Build name variants -> player ids. Variants used by several players are ambiguous.
+const variants = new Map();
+const addV = (v, id) => { v = v.trim(); if (!v) return; const s = variants.get(v) || new Set(); s.add(id); variants.set(v, s); };
+for (const p of PLAYERS) {
+  const words = norm(p.name).trim().split(" ");
+  const core = words.filter(w => !SUFFIX.has(w));
+  addV(words.join(" "), p.id);
+  addV(core.join(" "), p.id);
+  if (core.length > 1) addV(core[0][0] + " " + core.slice(1).join(" "), p.id);
+}
+
+function parse(text) {
+  const t = norm(text);
+  const taken = new Set(), ambiguous = [];
+  // Longest variants first, so "jalen williams" wins over "j williams".
+  const list = [...variants.entries()].sort((a, b) => b[0].length - a[0].length);
+  let rest = t;
+  for (const [v, ids] of list) {
+    const needle = " " + v + " ";
+    if (!rest.includes(needle)) continue;
+    if (ids.size === 1) { taken.add([...ids][0]); }
+    else {
+      const cands = [...ids].filter(id => !taken.has(id));
+      if (cands.length) ambiguous.push({ v, cands });
+    }
+    rest = rest.split(needle).join(" | ");
+  }
+  return { taken, ambiguous };
+}
+
+let pasted = "";
+try { pasted = localStorage.getItem(KEY) || ""; } catch (e) {}
+let filterPos = "", query = "", showTaken = false, taken = new Set(), ambiguous = [];
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = v => v === null ? "–" : v.toFixed(2);
 const inj = p => p.inj ? `<span class="inj ${esc(p.inj)}" title="Traumos statusas">${esc(p.inj)}</span>` : "";
-
-function takenMap() { const m = new Map(); state.picks.forEach((k, i) => m.set(k.id, { mine: k.mine, n: i + 1 })); return m; }
-
-function pick(id, mine) {
-  if (state.picks.some(k => k.id === id)) return;
-  state.picks.push({ id, mine });
-  save(); render();
-}
-function unpick(id) { state.picks = state.picks.filter(k => k.id !== id); save(); render(); }
+const byId = Object.fromEntries(PLAYERS.map(p => [p.id, p]));
 
 function recRow(p, i) {
   return `<div class="rec">
     <div class="rk">${i + 1}</div>
     <div class="nm"><b>${esc(p.name)}${inj(p)}</b><span>${esc(p.team)} · ${esc(p.pos)} · #${p.rank}</span></div>
     <div class="val num">${fmt(p.max)}</div>
-    <div class="acts"><button class="mini m" data-mine="${p.id}" type="button">Mano</button><button class="mini t" data-take="${p.id}" type="button">Paimtas</button></div>
   </div>`;
 }
 
+function update() {
+  ({ taken, ambiguous } = parse(pasted));
+  const n = taken.size;
+  $("status").innerHTML = pasted.trim() ? `Atpažinta <b>${n}</b> žaid.` : "Dar nieko neįklijuota.";
+  if (ambiguous.length) {
+    $("warn").hidden = false;
+    $("warn").innerHTML = "Neaišku, kuris žaidėjas (parašykite pilną vardą):<ul>" +
+      ambiguous.map(a => `<li>${esc(a.v)} → ${a.cands.map(id => esc(byId[id].name)).join(" / ")}</li>`).join("") + "</ul>";
+  } else $("warn").hidden = true;
+  render();
+}
+
 function render() {
-  const taken = takenMap();
   const avail = PLAYERS.filter(p => !taken.has(p.id));
-  const n = state.picks.length;
+  const n = taken.size;
   $("pick").textContent = n + 1;
   $("round").textContent = Math.floor(n / TEAMS) + 1;
+  $("takenCount").textContent = n;
   $("left").textContent = avail.length;
-  $("undo").disabled = n === 0;
 
   $("top5").innerHTML = avail.slice(0, 5).map(recRow).join("") || `<div class="empty">Laisvų žaidėjų neliko.</div>`;
   $("bypos").innerHTML = POS.map(P => {
-    const list = avail.filter(p => p.p[P]).slice(0, 3);
-    const total = avail.filter(p => p.p[P]).length;
-    return `<div class="posblock"><h3>${P} <em>${total} laisvi</em></h3>${list.map(recRow).join("") || `<div class="empty">Nėra laisvų.</div>`}</div>`;
+    const all = avail.filter(p => p.p[P]);
+    return `<div class="posblock"><h3>${P} <em>${all.length} laisvi</em></h3>${all.slice(0, 3).map(recRow).join("") || `<div class="empty">Nėra laisvų.</div>`}</div>`;
   }).join("");
 
-  const mine = state.picks.filter(k => k.mine).map(k => byId[k.id]);
-  $("mineCount").textContent = mine.length;
-  $("teamZ").textContent = mine.length ? `MAX suma ${mine.reduce((s, p) => s + p.max, 0).toFixed(1)}` : "";
-  $("posCounts").innerHTML = mine.length ? POS.map(P => `<span class="chip">${P} ${mine.filter(p => p.p[P]).length}</span>`).join("") : "";
-  $("myTeam").innerHTML = mine.map(p => `<div class="row"><b>${esc(p.name)}${inj(p)}</b><span>${esc(p.pos)} · ${fmt(p.max)}</span></div>`).join("")
-    || `<div class="empty">Pažymėkite žaidėją mygtuku „Mano“.</div>`;
-
   const q = query.trim().toLowerCase();
+  const qn = norm(query).trim();
   const rows = PLAYERS.filter(p =>
     (showTaken || !taken.has(p.id)) &&
     (!filterPos || p.p[filterPos]) &&
-    (!q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q)));
+    (!q || norm(p.name).includes(qn) || p.team.toLowerCase().includes(q)));
   $("rows").innerHTML = rows.map(p => {
-    const t = taken.get(p.id);
-    const cls = t ? (t.mine ? "mine" : "taken") : "";
-    const act = t
-      ? `<span class="tag ${t.mine ? "mine" : ""}">${t.mine ? "Mano" : "Paimtas"} · ${t.n}</span> <button class="mini" data-undo="${p.id}" type="button">Grąžinti</button>`
-      : `<div class="acts"><button class="mini m" data-mine="${p.id}" type="button">Mano</button><button class="mini t" data-take="${p.id}" type="button">Paimtas</button></div>`;
-    return `<tr class="${cls}">
+    const t = taken.has(p.id);
+    return `<tr class="${t ? "taken" : ""}">
       <td class="r num">${p.rank}</td><td class="pl"><b>${esc(p.name)}</b>${inj(p)}</td><td>${esc(p.team)}</td><td>${esc(p.pos)}</td>
       <td class="r num">${fmt(p.max)}</td><td class="r num">${fmt(p.zp)}</td><td class="r num">${fmt(p.zl)}</td><td class="r num">${p.gp ?? "–"}</td>
-      <td>${act}</td></tr>`;
+      <td>${t ? `<span class="tag">Paimtas</span>` : ""}</td></tr>`;
   }).join("") || `<tr><td colspan="9" class="empty">Pagal filtrą žaidėjų nerasta.</td></tr>`;
 }
 
-document.addEventListener("click", e => {
+let timer;
+$("pasted").value = pasted;
+$("pasted").addEventListener("input", e => {
+  pasted = e.target.value;
+  try { localStorage.setItem(KEY, pasted); } catch (err) {}
+  clearTimeout(timer); timer = setTimeout(update, 150);
+});
+$("clear").addEventListener("click", () => {
+  pasted = ""; $("pasted").value = "";
+  try { localStorage.setItem(KEY, ""); } catch (err) {}
+  update(); $("pasted").focus();
+});
+$("posFilter").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.mine) pick(+b.dataset.mine, true);
-  else if (b.dataset.take) pick(+b.dataset.take, false);
-  else if (b.dataset.undo) unpick(+b.dataset.undo);
-  else if (b.dataset.p !== undefined && b.closest("#posFilter")) {
-    filterPos = b.dataset.p;
-    document.querySelectorAll("#posFilter button").forEach(x => x.setAttribute("aria-pressed", x === b));
-    render();
-  }
+  filterPos = b.dataset.p;
+  document.querySelectorAll("#posFilter button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  render();
 });
 $("q").addEventListener("input", e => { query = e.target.value; render(); });
 $("showTaken").addEventListener("change", e => { showTaken = e.target.checked; render(); });
-$("undo").addEventListener("click", () => { state.picks.pop(); save(); render(); });
-$("reset").addEventListener("click", () => { $("confirm").hidden = false; $("cfNo").focus(); });
-$("cfNo").addEventListener("click", () => { $("confirm").hidden = true; });
-$("cfYes").addEventListener("click", () => { state.picks = []; save(); $("confirm").hidden = true; render(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") $("confirm").hidden = true; });
-render();
+update();
 </script>
